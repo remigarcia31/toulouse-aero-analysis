@@ -23,6 +23,6 @@ steps:
 
 # --- Ajoutez d'autres étapes ici plus tard (lint, test, deploy) ---
 
-# Options de configuration (optionnel)
-# options:
-#  logging: CLOUD_LOGGING_ONLY
+# Options de configuration pour les logs
+options:
+ logging: CLOUD_LOGGING_ONLY
