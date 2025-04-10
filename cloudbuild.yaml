@@ -1,0 +1,28 @@
+steps:
+# Étape pour valider le code Terraform
+- name: 'hashicorp/terraform:1.3.7'
+  id: 'Terraform Validate'
+  entrypoint: 'sh'
+  args:
+    - '-c'
+    - |
+      echo "Starting Terraform validation..."
+      cd terraform # Important de se placer dans le bon répertoire
+
+      # Initialiser Terraform avec le backend GCS
+      # Le nom du bucket est nécessaire ici. Plusieurs façons de le passer:
+      # 1. Substitution Cloud Build (si définie dans le trigger)
+      # 2. Le hardcoder ici (moins idéal)
+      # 3. Le lire depuis un fichier non-commit (pas idéal en CI)
+      # Utilisons une substitution _TF_STATE_BUCKET (à définir dans le trigger Cloud Build)
+      terraform init -backend-config=bucket=${_TF_STATE_BUCKET} -reconfigure
+
+      # Valider la configuration
+      terraform validate
+      echo "Terraform validation successful."
+
+# --- Ajoutez d'autres étapes ici plus tard (lint, test, deploy) ---
+
+# Options de configuration (optionnel)
+# options:
+#  logging: CLOUD_LOGGING_ONLY
