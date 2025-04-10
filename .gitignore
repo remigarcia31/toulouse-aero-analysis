@@ -1,0 +1,19 @@
+# Environnement virtuel Python
+venv/
+__pycache__/
+*.pyc
+
+# Fichiers Terraform locaux
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Fichiers OS divers
+.DS_Store
+Thumbs.db
