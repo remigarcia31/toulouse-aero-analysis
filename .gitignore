@@ -19,3 +19,5 @@ override.tf.json
 Thumbs.db
 
 terraform/*.txt
+src/spark_job/*.txt
+screenshots/
