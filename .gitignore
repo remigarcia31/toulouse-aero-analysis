@@ -20,4 +20,5 @@ Thumbs.db
 
 terraform/*.txt
 src/spark_job/*.txt
+dags/*.txt
 screenshots/
