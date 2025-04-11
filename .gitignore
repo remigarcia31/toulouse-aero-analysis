@@ -17,3 +17,5 @@ override.tf.json
 # Fichiers OS divers
 .DS_Store
 Thumbs.db
+
+terraform/*.txt
