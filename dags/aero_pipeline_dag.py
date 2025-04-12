@@ -1,18 +1,20 @@
 import datetime
+
+import pendulum  # Pendulum est souvent pré-installé dans Composer et gère mieux les timezones
 from airflow import DAG
+
 # from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitPySparkJobOperator
 from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
 from airflow.utils.dates import days_ago
-import pendulum # Pendulum est souvent pré-installé dans Composer et gère mieux les timezones
 
 # Arguments communs pour les tâches
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False, # Ne dépend pas de l'exécution précédente
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1, # Nombre de tentatives en cas d'échec
-    'retry_delay': datetime.timedelta(minutes=5), # Délai entre les tentatives
+    "owner": "airflow",
+    "depends_on_past": False,  # Ne dépend pas de l'exécution précédente
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 1,  # Nombre de tentatives en cas d'échec
+    "retry_delay": datetime.timedelta(minutes=5),  # Délai entre les tentatives
 }
 
 # --- Variables de Configuration ---
@@ -32,15 +34,17 @@ GCS_PROCESSED_BASE_PATH = "gs://clean_data_ads/processed_flight_data/"
 # Définition du DAG
 # Utilisation de pendulum pour une gestion plus robuste des fuseaux horaires
 with DAG(
-    dag_id='aero_data_processing_pipeline',
+    dag_id="aero_data_processing_pipeline",
     default_args=default_args,
-    description='Pipeline pour traiter les données ADS-B depuis GCS avec Spark sur Dataproc',
+    description="Pipeline pour traiter les données ADS-B depuis GCS avec Spark sur Dataproc",
     # Déclencher toutes les heures, 15 minutes après l'heure pleine (ex: 01:15, 02:15...)
-    schedule_interval='15 * * * *',
+    schedule_interval="15 * * * *",
     # Date de début : hier (pour permettre un déclenchement rapide si besoin)
-    start_date=pendulum.datetime(2025, 4, 10, tz="Europe/Paris"), # Ajuster la date si besoin
-    catchup=False, # Important: Ne pas essayer de rattraper les exécutions passées au premier déploiement
-    tags=['aeronautics', 'dataproc', 'gcp'],
+    start_date=pendulum.datetime(
+        2025, 4, 10, tz="Europe/Paris"
+    ),  # Ajuster la date si besoin
+    catchup=False,  # Important: Ne pas essayer de rattraper les exécutions passées au premier déploiement
+    tags=["aeronautics", "dataproc", "gcp"],
 ) as dag:
 
     # Construction dynamique du chemin d'entrée basé sur l'heure PRECEDENTE l'exécution logique
@@ -55,21 +59,20 @@ with DAG(
     # Définir la configuration spécifique pour un job PySpark
     pyspark_job_config = {
         "main_python_file_uri": GCS_SPARK_SCRIPT_PATH,
-        "args": [
-            f"--input={gcs_input_path}",
-            f"--output={GCS_PROCESSED_BASE_PATH}"
-        ]
+        "args": [f"--input={gcs_input_path}", f"--output={GCS_PROCESSED_BASE_PATH}"],
     }
 
     # Tâche pour soumettre le job
     submit_spark_job = DataprocSubmitJobOperator(
-        task_id='submit_process_adsb_spark_job',
+        task_id="submit_process_adsb_spark_job",
         project_id=GCP_PROJECT_ID,
         region=GCP_REGION,
         # configuration spécifique du job PySpark
         job={
             # "reference": {"job_id": f"aero_process_{{{{ ds_nodash }}}}_{{{{ ti.try_number }}}}"}, # Nom de job unique
-            "placement": {"cluster_name": DATAPROC_CLUSTER_NAME}, # Confirmer le cluster cible
-            "pyspark_job": pyspark_job_config # Passer la config
-        }
+            "placement": {
+                "cluster_name": DATAPROC_CLUSTER_NAME
+            },  # Confirmer le cluster cible
+            "pyspark_job": pyspark_job_config,  # Passer la config
+        },
     )

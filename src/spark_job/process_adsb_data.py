@@ -1,16 +1,33 @@
 import argparse
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_unixtime, to_timestamp, lit
-from pyspark.sql.types import (
-    StructType, StructField, StringType, LongType, DoubleType,
-    BooleanType, IntegerType, TimestampType, ArrayType
-)
 import logging
-from pyspark.sql.functions import year, month, dayofmonth, hour
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import (
+    col,
+    dayofmonth,
+    from_unixtime,
+    hour,
+    lit,
+    month,
+    to_timestamp,
+    year,
+)
+from pyspark.sql.types import (
+    ArrayType,
+    BooleanType,
+    DoubleType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
 
 # Configuration du logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # Définir le schéma attendu pour les données 'states' DANS le JSON brut
 # C'est une liste de listes, donc on définit le type pour chaque élément de la sous-liste
@@ -27,20 +44,26 @@ opensky_state_schema_list = [
     ("velocity", DoubleType(), True),
     ("true_track", DoubleType(), True),
     ("vertical_rate", DoubleType(), True),
-    ("sensors", ArrayType(IntegerType(), True), True), # Liste d'entiers pour sensors
+    ("sensors", ArrayType(IntegerType(), True), True),  # Liste d'entiers pour sensors
     ("geo_altitude", DoubleType(), True),
     ("squawk", StringType(), True),
     ("spi", BooleanType(), True),
-    ("position_source", IntegerType(), True)
+    ("position_source", IntegerType(), True),
 ]
 
 # Créer le StructType pour une ligne/état d'avion
-flight_state_struct = StructType([StructField(name, dtype, nullable) for name, dtype, nullable in opensky_state_schema_list])
+flight_state_struct = StructType(
+    [
+        StructField(name, dtype, nullable)
+        for name, dtype, nullable in opensky_state_schema_list
+    ]
+)
 
 # Schéma global du fichier JSON lu (approximatif, peut-être devoir l'ajuster)
 # On s'attend à 'time' et 'states' (une liste de notre structure ci-dessus)
 # Note : Lire directement un JSON multilignes complexe avec un schéma défini peut être délicat.
 # On va probablement devoir lire le JSON brut puis l'exploser/parser.
+
 
 def process_data(spark, input_path, output_path):
     """
@@ -54,7 +77,7 @@ def process_data(spark, input_path, output_path):
     # === Étape 1: Lecture des fichiers JSON ===
     # Lire tous les fichiers JSON du chemin d'entrée.
     # 'multiLine=True' car chaque fichier JSON peut s'étendre sur plusieurs lignes.
-    # Spark essaiera d'inférer le schéma, mais c'est souvent là que ça coince avec des structures complexes.
+    # Spark essaiera d'inférer le schéma, mais c'est souvent là que ça coince avec des structures complexes
     try:
         # Lire en inférant le schéma. 'multiLine=True' est crucial.
         raw_df = spark.read.option("multiLine", "true").json(input_path)
@@ -63,8 +86,10 @@ def process_data(spark, input_path, output_path):
         # raw_df.show(1, truncate=False) # Décommenter pour voir un exemple de ligne brute
 
         # Vérification essentielle: les colonnes attendues sont-elles là?
-        if 'states' not in raw_df.columns or 'time' not in raw_df.columns:
-            logging.error("Colonnes 'states' ou 'time' manquantes dans le JSON lu. Vérifiez le format des fichiers d'entrée.")
+        if "states" not in raw_df.columns or "time" not in raw_df.columns:
+            logging.error(
+                "Colonnes 'states' ou 'time' manquantes dans le JSON lu. Vérifiez le format des fichiers d'entrée."
+            )
             logging.error(f"Colonnes trouvées: {raw_df.columns}")
             raise ValueError("Schéma JSON d'entrée inattendu.")
 
@@ -76,21 +101,23 @@ def process_data(spark, input_path, output_path):
     # À ce stade, raw_df contient probablement des colonnes comme 'time', 'states'.
     # La colonne 'states' est une LISTE de structures (ou de listes).
     # Il faut "exploser" cette liste pour avoir une ligne par état d'avion.
-    from pyspark.sql.functions import explode, col, from_unixtime
+    from pyspark.sql.functions import col, explode, from_unixtime
 
     logging.info("Explosion de la colonne 'states'...")
     # Sélectionner 'time' (sera notre fetch_time) et exploser 'states'
     # explode_outer est plus sûr si 'states' peut être null ou vide
     exploded_df = raw_df.select(
         col("time").alias("fetch_timestamp_unix"),
-        explode(col("states")).alias("state_info")
+        explode(col("states")).alias("state_info"),
         # Utiliser explode_outer(col("states")) si la colonne states peut être absente ou nulle dans certains JSON
     )
 
     logging.info("Schéma après explosion de la colonne 'states':")
-    exploded_df.printSchema() # Très important pour voir le type de 'state_info'
+    exploded_df.printSchema()  # Très important pour voir le type de 'state_info'
     logging.info("Exemple de données après explosion:")
-    exploded_df.show(5, truncate=False) # Important pour voir le contenu de 'state_info'
+    exploded_df.show(
+        5, truncate=False
+    )  # Important pour voir le contenu de 'state_info'
 
     # TODO:
     # 1. Sélectionner les colonnes 'time' (fetch_time) et 'states'.
@@ -104,9 +131,15 @@ def process_data(spark, input_path, output_path):
     # 7. Gérer les valeurs nulles si nécessaire (ex: remplir avec des valeurs par défaut ?).
 
     # === Étape 2b: Extraction et Typage des Champs ===
-    from pyspark.sql.functions import from_unixtime, to_timestamp, col
-    from pyspark.sql.types import ( StringType, LongType, DoubleType, BooleanType,
-                                   IntegerType, TimestampType ) # Assurez-vous d'importer TimestampType
+    from pyspark.sql.functions import col, from_unixtime, to_timestamp
+    from pyspark.sql.types import (  # Assurez-vous d'importer TimestampType
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        LongType,
+        StringType,
+        TimestampType,
+    )
 
     logging.info("Extraction et typage des champs depuis 'state_info'...")
 
@@ -118,16 +151,21 @@ def process_data(spark, input_path, output_path):
 
     processed_df = exploded_df.select(
         # Convertir fetch_timestamp_unix en TimestampType
-        from_unixtime(col("fetch_timestamp_unix")).cast(TimestampType()).alias("fetch_time"),
-
+        from_unixtime(col("fetch_timestamp_unix"))
+        .cast(TimestampType())
+        .alias("fetch_time"),
         # Extraire chaque élément de la liste state_info par son index,
         # caster vers le bon type, et lui donner un nom de colonne (alias)
         col("state_info")[0].cast(StringType()).alias("icao24"),
         col("state_info")[1].cast(StringType()).alias("callsign"),
         col("state_info")[2].cast(StringType()).alias("origin_country"),
         # Pour les timestamps, caster en Long puis convertir depuis les secondes Unix
-        from_unixtime(col("state_info")[3].cast(LongType())).cast(TimestampType()).alias("time_position"),
-        from_unixtime(col("state_info")[4].cast(LongType())).cast(TimestampType()).alias("last_contact"),
+        from_unixtime(col("state_info")[3].cast(LongType()))
+        .cast(TimestampType())
+        .alias("time_position"),
+        from_unixtime(col("state_info")[4].cast(LongType()))
+        .cast(TimestampType())
+        .alias("last_contact"),
         col("state_info")[5].cast(DoubleType()).alias("longitude"),
         col("state_info")[6].cast(DoubleType()).alias("latitude"),
         col("state_info")[7].cast(DoubleType()).alias("baro_altitude"),
@@ -139,20 +177,24 @@ def process_data(spark, input_path, output_path):
         col("state_info")[13].cast(DoubleType()).alias("geo_altitude"),
         col("state_info")[14].cast(StringType()).alias("squawk"),
         col("state_info")[15].cast(BooleanType()).alias("spi"),
-        col("state_info")[16].cast(IntegerType()).alias("position_source")
+        col("state_info")[16].cast(IntegerType()).alias("position_source"),
     )
 
     logging.info("Schéma final après transformation:")
     processed_df.printSchema()
     logging.info("Exemple de données transformées:")
-    processed_df.show(10, truncate=False) # Afficher plus de lignes pour vérifier
+    processed_df.show(10, truncate=False)  # Afficher plus de lignes pour vérifier
 
     # === Étape 2c: Ajout des Colonnes de Partition ===
-    logging.info("Ajout des colonnes de partition (year, month, day, hour) basées sur fetch_time...")
-    processed_df_with_partitions = processed_df.withColumn("year", year(col("fetch_time"))) \
-                                             .withColumn("month", month(col("fetch_time"))) \
-                                             .withColumn("day", dayofmonth(col("fetch_time"))) \
-                                             .withColumn("hour", hour(col("fetch_time")))
+    logging.info(
+        "Ajout des colonnes de partition (year, month, day, hour) basées sur fetch_time..."
+    )
+    processed_df_with_partitions = (
+        processed_df.withColumn("year", year(col("fetch_time")))
+        .withColumn("month", month(col("fetch_time")))
+        .withColumn("day", dayofmonth(col("fetch_time")))
+        .withColumn("hour", hour(col("fetch_time")))
+    )
 
     logging.info("Schéma après ajout des colonnes de partition:")
     processed_df_with_partitions.printSchema()
@@ -161,7 +203,9 @@ def process_data(spark, input_path, output_path):
     # === Étape 3: Écriture en Parquet ===
     partition_columns = ["year", "month", "day", "hour"]
     # Le output_path est maintenant le chemin de base où les dossiers de partition seront créés
-    logging.info(f"Écriture des données traitées au format Parquet vers {output_path}, partitionné par {partition_columns}...")
+    logging.info(
+        f"Écriture des données traitées au format Parquet vers {output_path}, partitionné par {partition_columns}..."
+    )
     try:
         # Écrire en écrasant la partition correspondante si elle existe déjà.
         # Pour un traitement fiable, on utilise souvent "append" et on s'assure
@@ -172,10 +216,9 @@ def process_data(spark, input_path, output_path):
         # Pour écraser dynamiquement seulement les partitions traitées:
         # spark.conf.set("spark.sql.sources.partitionOverwriteMode","dynamic") # A ajouter avant l'écriture si besoin
         # Simplifions pour l'instant : Assurez-vous que l'input correspond bien à ce que vous voulez écraser/écrire.
-        processed_df_with_partitions.write \
-            .partitionBy(*partition_columns) \
-            .mode("overwrite") \
-            .parquet(output_path)
+        processed_df_with_partitions.write.partitionBy(*partition_columns).mode(
+            "overwrite"
+        ).parquet(output_path)
 
         logging.info("Écriture Parquet partitionnée terminée avec succès.")
     except Exception as e:
@@ -186,10 +229,14 @@ def process_data(spark, input_path, output_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--input', required=True, help="Chemin GCS vers les données JSON brutes (ex: gs://bucket/landing/YYYY/MM/DD/HH/)"
+        "--input",
+        required=True,
+        help="Chemin GCS vers les données JSON brutes (ex: gs://bucket/landing/YYYY/MM/DD/HH/)",
     )
     parser.add_argument(
-        '--output', required=True, help="Chemin GCS où écrire les données Parquet traitées (ex: gs://bucket/processed/YYYY/MM/DD/HH/)"
+        "--output",
+        required=True,
+        help="Chemin GCS où écrire les données Parquet traitées (ex: gs://bucket/processed/YYYY/MM/DD/HH/)",
     )
     args = parser.parse_args()
 
