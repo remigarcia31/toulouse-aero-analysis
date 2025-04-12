@@ -25,7 +25,7 @@ steps:
         echo "Installing dependencies into venv..."
         # pip du venv pour installer
         /workspace/venv/bin/pip install --upgrade pip
-        /workspace/venv/bin/pip install -r src/cloud_function_ingest/requirements.txt -r requirements-dev.txt
+        /workspace/venv/bin/pip install -r src/cloud_function_ingest/requirements.txt -r requirements.txt
         echo "Dependencies installed."
 
   # --- Étape 3: Linting du code Python ---
