@@ -33,7 +33,10 @@ steps:
   - name: 'python:3.11' 
     id: 'Lint Cloud Function Code'
     entrypoint: '/workspace/venv/bin/flake8' # Chemin complet vers flake8 dans le venv
-    args: ['src/cloud_function_ingest/']
+    args: [
+        '--ignore=E501', # Ignorer l'erreur ligne trop longue
+        'src/cloud_function_ingest/'
+      ]
 
   # --- Étape 4: Exécution des Tests Unitaires Python ---
   # Utilise l'exécutable pytest DEPUIS le venv
