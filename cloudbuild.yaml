@@ -1,6 +1,5 @@
 steps:
   # --- Étape 1: Validation Terraform ---
-  # (vérifier la syntaxe de l'infra)
   - name: 'hashicorp/terraform:1.3.7'
     id: 'Terraform Validate'
     entrypoint: 'sh'
@@ -8,47 +7,45 @@ steps:
       - '-c'
       - |
         echo "Validating Terraform configuration..."
-        cd terraform # Se placer dans le dossier Terraform
-        terraform init -backend-config=bucket=${_TF_STATE_BUCKET} # Utilise la variable de substitution du trigger
+        cd terraform
+        terraform init -backend-config=bucket=${_TF_STATE_BUCKET}
         terraform validate
         echo "Terraform validation successful."
 
-  # --- Étape 2: Installation des dépendances Python ---
-  # Installe les libs nécessaires pour la fonction ET pour les tests/linting
-  - name: 'python:3.11' 
-    id: 'Install Python Dependencies'
-    entrypoint: pip
-    args: [
-        'install',
-        '-r', 'src/cloud_function_ingest/requirements.txt', # Dépendances de la fonction
-        '-r', 'requirements.txt' # Dépendances de dev (flake8, pytest)
-      ]
+  # --- Étape 2: Setup Python Env & Install Dependencies ---
+  # Crée un venv dans /workspace et installe les dépendances dedans
+  - name: 'python:3.11'
+    id: 'Setup Python Environment'
+    entrypoint: 'bash' # bash pour pouvoir chainer les commandes
+    args:
+      - '-c'
+      - |
+        echo "Creating virtual environment in /workspace/venv..."
+        python -m venv /workspace/venv
+        echo "Installing dependencies into venv..."
+        # pip du venv pour installer
+        /workspace/venv/bin/pip install --upgrade pip
+        /workspace/venv/bin/pip install -r src/cloud_function_ingest/requirements.txt -r requirements-dev.txt
+        echo "Dependencies installed."
 
   # --- Étape 3: Linting du code Python ---
-  # Vérifie la qualité/style du code de la Cloud Function
-  - name: 'python:3.11'
+  # Utilise l'exécutable flake8 DEPUIS le venv créé à l'étape précédente
+  - name: 'python:3.11' 
     id: 'Lint Cloud Function Code'
-    entrypoint: python 
-    args: [
-        '-m',         
-        'flake8',     
-        'src/cloud_function_ingest/' 
-      ]
+    entrypoint: '/workspace/venv/bin/flake8' # Chemin complet vers flake8 dans le venv
+    args: ['src/cloud_function_ingest/']
 
   # --- Étape 4: Exécution des Tests Unitaires Python ---
-  # Lance les tests définis dans le dossier tests/ de la fonction
+  # Utilise l'exécutable pytest DEPUIS le venv
   - name: 'python:3.11'
     id: 'Run Cloud Function Unit Tests'
-    entrypoint: python
-    args: [
-        '-m',      
-        'pytest',  
-        'src/cloud_function_ingest/tests/' # Chemin vers les tests
-      ]
+    entrypoint: '/workspace/venv/bin/pytest' # Chemin complet vers pytest dans le venv
+    args: ['src/cloud_function_ingest/tests/']
+
 
 # Options globales pour le build
 options:
-  logging: CLOUD_LOGGING_ONLY # option pour les logs
+  logging: CLOUD_LOGGING_ONLY
 
-# Configuration du timeout global
+# Configuration du timeout global (optionnel)
 # timeout: "1200s" # 20 minutes
