@@ -200,6 +200,8 @@ if __name__ == "__main__":
     # spark.conf.set("google.cloud.auth.service.account.enable", "true")
     # spark.conf.set("google.cloud.auth.service.account.json.keyfile", "/path/to/your/keyfile.json") # Si ADC ne marche pas localement
 
+    spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+
     # Appeler la fonction de traitement
     process_data(spark, args.input, args.output)
 
