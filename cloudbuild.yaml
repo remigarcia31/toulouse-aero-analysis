@@ -28,15 +28,23 @@ steps:
   # Vérifie la qualité/style du code de la Cloud Function
   - name: 'python:3.11'
     id: 'Lint Cloud Function Code'
-    entrypoint: flake8
-    args: ['src/cloud_function_ingest/'] # Chemin vers le code de la fonction
+    entrypoint: python 
+    args: [
+        '-m',         
+        'flake8',     
+        'src/cloud_function_ingest/' 
+      ]
 
   # --- Étape 4: Exécution des Tests Unitaires Python ---
   # Lance les tests définis dans le dossier tests/ de la fonction
   - name: 'python:3.11'
     id: 'Run Cloud Function Unit Tests'
-    entrypoint: pytest
-    args: ['src/cloud_function_ingest/tests/'] # Chemin vers les tests
+    entrypoint: python
+    args: [
+        '-m',      
+        'pytest',  
+        'src/cloud_function_ingest/tests/' # Chemin vers les tests
+      ]
 
 # Options globales pour le build
 options:
