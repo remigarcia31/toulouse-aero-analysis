@@ -49,11 +49,12 @@ steps:
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
-          -r requirements.txt
+          -r requirements.txt 
         echo "Dependencies installed."
-        # Échapper le dollar pour que Cloud Build ne l'interprète pas, mais bash oui lors de l'écriture
+        # Utiliser printf pour écrire la commande d'export dans le fichier
+        # Le parser Cloud Build voit 'export ...=%s\n', pas la variable directement
         echo "Exporting MY_BUILD_JAVA_HOME to /workspace/java_env.sh..."
-        echo "export MY_BUILD_JAVA_HOME=\$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh # <-- MODIFIÉ ICI (ajout de \)
+        printf 'export MY_BUILD_JAVA_HOME=%s\n' "$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh
         echo "java_env.sh created."
 
 
