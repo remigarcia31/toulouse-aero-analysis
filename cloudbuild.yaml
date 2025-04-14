@@ -1,5 +1,19 @@
 steps:
-  # --- Étape 1: Validation Terraform ---
+  # === Étape 1 : DEBUG ===
+  # Affiche le contenu du fichier cloudbuild.yaml tel qu'il est vu par le build
+  - name: 'ubuntu' # Une image simple avec la commande 'cat'
+    id: 'DEBUG Show YAML Content'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "--- Contenu de /workspace/cloudbuild.yaml ---"
+        cat /workspace/cloudbuild.yaml || echo "ERREUR: Impossible d'afficher /workspace/cloudbuild.yaml"
+        echo "--- Fin du contenu ---"
+        # Vérifions aussi si JAVA_HOME existe déjà pour une raison inconnue au début
+        echo "DEBUG: Variable JAVA_HOME au début du build: [$JAVA_HOME]"
+
+  # --- Étape 2 : Validation Terraform ---
   - name: 'hashicorp/terraform:1.3.7'
     id: 'Terraform Validate'
     entrypoint: 'sh'
@@ -12,7 +26,7 @@ steps:
         terraform validate
         echo "Terraform validation successful."
 
-  # --- Étape 2: Setup Python Env, Install Java & Dependencies ---
+  # --- Étape 3 : Setup Python Env, Install Java & Dependencies ---
   - name: 'python:3.11'
     id: 'Setup Environment and Dependencies'
     entrypoint: 'bash'
@@ -22,7 +36,7 @@ steps:
         echo "Installing Java (OpenJDK 11)..."
         apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-        echo "JAVA_HOME set to $JAVA_HOME" 
+        echo "JAVA_HOME set to $JAVA_HOME"
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
@@ -33,21 +47,22 @@ steps:
           -r requirements.txt
         echo "Dependencies installed."
         # Exporter JAVA_HOME pour les étapes suivantes
-        echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh # 
+        echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh
 
 
-  # --- Étape 3: Linting du code Python (Cloud Function) ---
+  # --- Étape 4 : Linting du code Python (Cloud Function) ---
   - name: 'python:3.11'
     id: 'Lint Cloud Function Code'
     entrypoint: '/workspace/venv/bin/flake8'
     args: [ '--ignore=E501', 'src/cloud_function_ingest/' ]
 
-  # --- Étape 4: Tests Unitaires Python (Cloud Function) ---
+  # --- Étape 5 : Tests Unitaires Python (Cloud Function) ---
   - name: 'python:3.11'
     id: 'Run Cloud Function Unit Tests'
     entrypoint: '/workspace/venv/bin/pytest'
     args: ['src/cloud_function_ingest/tests/']
 
+  # === Étape 6 : Tests Unitaires PySpark ===
   - name: 'python:3.11'
     id: 'Run Spark Unit Tests'
     entrypoint: 'bash'
@@ -55,7 +70,7 @@ steps:
       - '-c'
       - |
         source /workspace/java_env.sh || echo "java_env.sh not found, assuming JAVA_HOME is set."
-        echo "Running PySpark tests with JAVA_HOME=$JAVA_HOME..." # 
+        echo "Running PySpark tests with JAVA_HOME=$JAVA_HOME..."
         # Utiliser le pytest du venv
         /workspace/venv/bin/pytest src/spark_job/tests/
 
@@ -66,5 +81,5 @@ steps:
 options:
   logging: CLOUD_LOGGING_ONLY
 
-# Configuration du timeout global 
-# timeout: "1800s" # 30 minutes (l'installation Java/Spark peut prendre du temps)
+# Configuration du timeout global
+# timeout: "1800s"
