@@ -31,29 +31,23 @@ steps:
           echo "WARN: Terraform directory not found, skipping validation."
         fi
 
-  # # --- Étape 3 : Setup Python Env, Install Java & Dependencies ---
-  # - name: 'python:3.11'
-  #   id: 'Setup Environment and Dependencies'
-  #   entrypoint: 'bash'
-  #   args:
-  #     - '-c'
-  #     - |
-  #       echo "Installing Java (OpenJDK 11)..."
-  #       apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
-  #       # Utiliser un nom de variable différent pour l'export interne au build
-  #       export MY_BUILD_JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-  #       echo "MY_BUILD_JAVA_HOME variable set." # Ne pas afficher la valeur ici
-  #       echo "Creating virtual environment in /workspace/venv..."
-  #       python -m venv /workspace/venv
-  #       echo "Installing Python dependencies into venv..."
-  #       /workspace/venv/bin/pip install --upgrade pip
-  #       /workspace/venv/bin/pip install \
-  #         -r src/cloud_function_ingest/requirements.txt \
-  #         -r src/spark_job/requirements.txt \
-  #         -r requirements-dev.txt # Ou requirements.txt - vérifiez bien
-  #       echo "Dependencies installed."
-  #       # Exporter la variable renommée pour les étapes suivantes
-  #       echo "export MY_BUILD_JAVA_HOME=$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh
+  # --- Étape 3 : Setup Python Env, Install Java & Dependencies ---
+  - name: 'python:3.11'
+    id: 'Setup Java and Venv'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Installing Java (OpenJDK 11)..."
+        apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
+        export MY_BUILD_JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        echo "MY_BUILD_JAVA_HOME variable set."
+        echo "Creating virtual environment in /workspace/venv..."
+        python -m venv /workspace/venv
+        echo "Setup Java and Venv finished."
+        # PAS d'installation pip ici pour l'instant
+        # PAS d'écriture de java_env.sh ici pour l'instant
+
 
   # # --- Étape 4 : Linting du code Python (Cloud Function) ---
   # - name: 'python:3.11'
