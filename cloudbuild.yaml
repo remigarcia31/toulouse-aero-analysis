@@ -44,8 +44,16 @@ steps:
         echo "MY_BUILD_JAVA_HOME variable set."
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
-        echo "Setup Java and Venv finished."
-        # PAS d'installation pip ici pour l'instant
+        echo "Installing Python dependencies into venv..."
+        # Utiliser le pip du venv pour installer
+        /workspace/venv/bin/pip install --upgrade pip
+        # === AJOUT DES INSTALLATIONS PIP ===
+        /workspace/venv/bin/pip install \
+          -r src/cloud_function_ingest/requirements.txt \
+          -r src/spark_job/requirements.txt \
+          -r requirements.txt
+        # ==================================
+        echo "Dependencies installed."
         # PAS d'écriture de java_env.sh ici pour l'instant
 
 
