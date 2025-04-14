@@ -12,7 +12,7 @@ steps:
         terraform validate
         echo "Terraform validation successful."
 
-  # --- Étape 2: Setup Python Env, Install Java & Dependencies (MODIFIÉE) ---
+  # --- Étape 2: Setup Python Env, Install Java & Dependencies ---
   - name: 'python:3.11'
     id: 'Setup Environment and Dependencies'
     entrypoint: 'bash'
@@ -30,7 +30,7 @@ steps:
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
-          -r requirements-dev.txt
+          -r requirements.txt
         echo "Dependencies installed."
         # Exporter JAVA_HOME pour les étapes suivantes
         echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh # 
