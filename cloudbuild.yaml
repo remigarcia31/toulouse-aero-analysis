@@ -1,17 +1,17 @@
 steps:
-  # === Étape 1 : DEBUG ===
-  # Affiche le contenu du fichier cloudbuild.yaml tel qu'il est vu par le build
-  - name: 'ubuntu' # Une image simple avec la commande 'cat'
-    id: 'DEBUG Show YAML Content'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "--- Contenu de /workspace/cloudbuild.yaml ---"
-        cat /workspace/cloudbuild.yaml || echo "ERREUR: Impossible d'afficher /workspace/cloudbuild.yaml"
-        echo "--- Fin du contenu ---"
-        # Vérifions aussi si JAVA_HOME existe déjà pour une raison inconnue au début
-        echo "DEBUG: Variable JAVA_HOME au début du build: [$JAVA_HOME]"
+  # # === Étape 1 : DEBUG ===
+  # # Affiche le contenu du fichier cloudbuild.yaml tel qu'il est vu par le build
+  # - name: 'ubuntu' # Une image simple avec la commande 'cat'
+  #   id: 'DEBUG Show YAML Content'
+  #   entrypoint: 'sh'
+  #   args:
+  #     - '-c'
+  #     - |
+  #       echo "--- Contenu de /workspace/cloudbuild.yaml ---"
+  #       cat /workspace/cloudbuild.yaml || echo "ERREUR: Impossible d'afficher /workspace/cloudbuild.yaml"
+  #       echo "--- Fin du contenu ---"
+  #       # Vérifions aussi si JAVA_HOME existe déjà pour une raison inconnue au début
+  #       echo "DEBUG: Variable JAVA_HOME au début du build: [$JAVA_HOME]"
 
   # --- Étape 2 : Validation Terraform ---
   - name: 'hashicorp/terraform:1.3.7'
