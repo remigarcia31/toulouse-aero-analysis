@@ -12,43 +12,62 @@ steps:
         terraform validate
         echo "Terraform validation successful."
 
-  # --- Étape 2: Setup Python Env & Install Dependencies ---
-  # Crée un venv dans /workspace et installe les dépendances dedans
+  # --- Étape 2: Setup Python Env, Install Java & Dependencies (MODIFIÉE) ---
   - name: 'python:3.11'
-    id: 'Setup Python Environment'
-    entrypoint: 'bash' # bash pour pouvoir chainer les commandes
+    id: 'Setup Environment and Dependencies'
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
+        echo "Installing Java (OpenJDK 11)..."
+        apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 # Chemin standard sur Debian/Ubuntu
+        echo "JAVA_HOME set to ${JAVA_HOME}"
+
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
-        echo "Installing dependencies into venv..."
-        # pip du venv pour installer
+        echo "Installing Python dependencies into venv..."
         /workspace/venv/bin/pip install --upgrade pip
-        /workspace/venv/bin/pip install -r src/cloud_function_ingest/requirements.txt -r requirements.txt
+        # Installer TOUTES les dépendances nécessaires pour la suite
+        /workspace/venv/bin/pip install \
+          -r src/cloud_function_ingest/requirements.txt \
+          -r src/spark_job/requirements.txt \
+          -r requirements.txt
         echo "Dependencies installed."
+        # Exporter JAVA_HOME pour les étapes suivantes qui pourraient en avoir besoin indirectement via l'activation du venv (?)
+        # Normalement, PySpark devrait le trouver si défini globalement, mais ajoutons le au cas où via un fichier .env temporaire pour les étapes suivantes
+        echo "export JAVA_HOME=${JAVA_HOME}" > /workspace/java_env.sh
 
-  # --- Étape 3: Linting du code Python ---
-  # Utilise l'exécutable flake8 DEPUIS le venv créé à l'étape précédente
-  - name: 'python:3.11' 
+  # --- Étape 3: Linting du code Python (Cloud Function) ---
+  - name: 'python:3.11'
     id: 'Lint Cloud Function Code'
-    entrypoint: '/workspace/venv/bin/flake8' # Chemin complet vers flake8 dans le venv
-    args: [
-        '--ignore=E501', # Ignorer l'erreur ligne trop longue
-        'src/cloud_function_ingest/'
-      ]
+    entrypoint: '/workspace/venv/bin/flake8'
+    args: [ '--ignore=E501', 'src/cloud_function_ingest/' ]
 
-  # --- Étape 4: Exécution des Tests Unitaires Python ---
-  # Utilise l'exécutable pytest DEPUIS le venv
+  # --- Étape 4: Tests Unitaires Python (Cloud Function) ---
   - name: 'python:3.11'
     id: 'Run Cloud Function Unit Tests'
-    entrypoint: '/workspace/venv/bin/pytest' # Chemin complet vers pytest dans le venv
+    entrypoint: '/workspace/venv/bin/pytest'
     args: ['src/cloud_function_ingest/tests/']
 
+  # === Étape 5: Tests Unitaires PySpark ===
+  - name: 'python:3.11' # Image contient Python et les dépendances installées dans le venv
+    id: 'Run Spark Unit Tests'
+    entrypoint: 'bash' # Utiliser bash pour sourcer JAVA_HOME si besoin
+    args:
+      - '-c'
+      - |
+        # Assurer que JAVA_HOME est bien vu (normalement via l'étape 2, mais double sécurité)
+        source /workspace/java_env.sh || echo "java_env.sh not found, assuming JAVA_HOME is set."
+        echo "Running PySpark tests with JAVA_HOME=${JAVA_HOME}..."
+        # Utiliser le pytest du venv
+        /workspace/venv/bin/pytest src/spark_job/tests/
+
+  # --- Étapes Futures (Déploiement...) ---
 
 # Options globales pour le build
 options:
   logging: CLOUD_LOGGING_ONLY
 
-# Configuration du timeout global (optionnel)
-# timeout: "1200s" # 20 minutes
+# Configuration du timeout global 
+# timeout: "1800s" # 30 minutes (l'installation Java/Spark peut prendre du temps)
