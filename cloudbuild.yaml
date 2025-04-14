@@ -36,7 +36,8 @@ steps:
         echo "Installing Java (OpenJDK 11)..."
         apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-        echo "JAVA_HOME set to $JAVA_HOME"
+        # On n'affiche plus la variable ici pour éviter que CB ne l'interprète mal
+        echo "JAVA_HOME variable set."
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
@@ -44,9 +45,9 @@ steps:
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
-          -r requirements.txt
+          -r requirements-dev.txt # Ou requirements.txt - vérifiez bien ce fichier
         echo "Dependencies installed."
-        # Exporter JAVA_HOME pour les étapes suivantes
+        # Exporter JAVA_HOME pour les étapes suivantes - IMPORTANT: Garder $JAVA_HOME ici !
         echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh
 
 
@@ -70,10 +71,10 @@ steps:
       - '-c'
       - |
         source /workspace/java_env.sh || echo "java_env.sh not found, assuming JAVA_HOME is set."
-        echo "Running PySpark tests with JAVA_HOME=$JAVA_HOME..."
+        # On n'affiche plus la variable ici
+        echo "Running PySpark tests..."
         # Utiliser le pytest du venv
         /workspace/venv/bin/pytest src/spark_job/tests/
-
 
   # --- Étapes Futures (Déploiement...) ---
 
