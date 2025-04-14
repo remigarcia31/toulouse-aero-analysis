@@ -35,9 +35,9 @@ steps:
       - |
         echo "Installing Java (OpenJDK 11)..."
         apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
-        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-        # On n'affiche plus la variable ici pour éviter que CB ne l'interprète mal
-        echo "JAVA_HOME variable set."
+        # Utiliser un nom de variable différent pour l'export interne au build
+        export MY_BUILD_JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        echo "MY_BUILD_JAVA_HOME variable set." # Ne pas afficher la valeur ici
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
@@ -45,11 +45,10 @@ steps:
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
-          -r requirements-dev.txt # Ou requirements.txt - vérifiez bien ce fichier
+          -r requirements-dev.txt # Ou requirements.txt - vérifiez bien
         echo "Dependencies installed."
-        # Exporter JAVA_HOME pour les étapes suivantes - IMPORTANT: Garder $JAVA_HOME ici !
-        echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh
-
+        # Exporter la variable renommée pour les étapes suivantes
+        echo "export MY_BUILD_JAVA_HOME=$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh
 
   # --- Étape 4 : Linting du code Python (Cloud Function) ---
   - name: 'python:3.11'
@@ -70,8 +69,12 @@ steps:
     args:
       - '-c'
       - |
-        source /workspace/java_env.sh || echo "java_env.sh not found, assuming JAVA_HOME is set."
-        # On n'affiche plus la variable ici
+        # Sourcer le fichier pour obtenir MY_BUILD_JAVA_HOME
+        source /workspace/java_env.sh || echo "java_env.sh not found."
+        echo "MY_BUILD_JAVA_HOME value is: $MY_BUILD_JAVA_HOME" # On affiche la nouvelle variable
+        # MAINTENANT, définir la VRAIE variable JAVA_HOME pour Pytest/Spark
+        export JAVA_HOME="$MY_BUILD_JAVA_HOME"
+        echo "Actual JAVA_HOME for PySpark set to: $JAVA_HOME"
         echo "Running PySpark tests..."
         # Utiliser le pytest du venv
         /workspace/venv/bin/pytest src/spark_job/tests/
