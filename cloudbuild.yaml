@@ -21,22 +21,20 @@ steps:
       - |
         echo "Installing Java (OpenJDK 11)..."
         apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
-        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 # Chemin standard sur Debian/Ubuntu
-        echo "JAVA_HOME set to ${JAVA_HOME}"
-
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        echo "JAVA_HOME set to $JAVA_HOME" # <-- Changer ici
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
         /workspace/venv/bin/pip install --upgrade pip
-        # Installer TOUTES les dépendances nécessaires pour la suite
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
-          -r requirements.txt
+          -r requirements-dev.txt
         echo "Dependencies installed."
-        # Exporter JAVA_HOME pour les étapes suivantes qui pourraient en avoir besoin indirectement via l'activation du venv (?)
-        # Normalement, PySpark devrait le trouver si défini globalement, mais ajoutons le au cas où via un fichier .env temporaire pour les étapes suivantes
-        echo "export JAVA_HOME=${JAVA_HOME}" > /workspace/java_env.sh
+        # Exporter JAVA_HOME pour les étapes suivantes
+        echo "export JAVA_HOME=$JAVA_HOME" > /workspace/java_env.sh # 
+
 
   # --- Étape 3: Linting du code Python (Cloud Function) ---
   - name: 'python:3.11'
@@ -50,18 +48,17 @@ steps:
     entrypoint: '/workspace/venv/bin/pytest'
     args: ['src/cloud_function_ingest/tests/']
 
-  # === Étape 5: Tests Unitaires PySpark ===
-  - name: 'python:3.11' # Image contient Python et les dépendances installées dans le venv
+  - name: 'python:3.11'
     id: 'Run Spark Unit Tests'
-    entrypoint: 'bash' # Utiliser bash pour sourcer JAVA_HOME si besoin
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Assurer que JAVA_HOME est bien vu (normalement via l'étape 2, mais double sécurité)
         source /workspace/java_env.sh || echo "java_env.sh not found, assuming JAVA_HOME is set."
-        echo "Running PySpark tests with JAVA_HOME=${JAVA_HOME}..."
+        echo "Running PySpark tests with JAVA_HOME=$JAVA_HOME..." # 
         # Utiliser le pytest du venv
         /workspace/venv/bin/pytest src/spark_job/tests/
+
 
   # --- Étapes Futures (Déploiement...) ---
 
