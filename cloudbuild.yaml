@@ -22,7 +22,7 @@ steps:
         echo "Installing Java (OpenJDK 11)..."
         apt-get update -qq && apt-get install -y openjdk-11-jdk --no-install-recommends
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-        echo "JAVA_HOME set to $JAVA_HOME" # <-- Changer ici
+        echo "JAVA_HOME set to $JAVA_HOME" 
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
