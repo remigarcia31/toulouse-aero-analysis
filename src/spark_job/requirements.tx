@@ -1,0 +1,6 @@
+# Version de PySpark compatible avec votre image Dataproc et développement local
+pyspark>=3.3.0,<3.6.0
+# Connecteur GCS (si lecture/écriture explicitement avec Hadoop API, sinon pyspark peut suffire)
+gcsfs>=2023.9.0
+# Pour les tests
+chispa>=0.9.0
