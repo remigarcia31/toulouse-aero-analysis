@@ -51,11 +51,10 @@ steps:
           -r src/spark_job/requirements.txt \
           -r requirements.txt
         echo "Dependencies installed."
-        # === AJOUT DE L'ÉCRITURE DU FICHIER ===
+        # Échapper le dollar pour que Cloud Build ne l'interprète pas, mais bash oui lors de l'écriture
         echo "Exporting MY_BUILD_JAVA_HOME to /workspace/java_env.sh..."
-        echo "export MY_BUILD_JAVA_HOME=$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh
+        echo "export MY_BUILD_JAVA_HOME=\$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh # <-- MODIFIÉ ICI (ajout de \)
         echo "java_env.sh created."
-        # ======================================
 
 
   # # --- Étape 4 : Linting du code Python (Cloud Function) ---
