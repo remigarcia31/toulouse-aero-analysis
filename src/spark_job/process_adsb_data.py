@@ -2,16 +2,7 @@ import argparse
 import logging
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    col,
-    dayofmonth,
-    from_unixtime,
-    hour,
-    lit,
-    month,
-    to_timestamp,
-    year,
-)
+from pyspark.sql.functions import dayofmonth, hour, month, year
 from pyspark.sql.types import (
     ArrayType,
     BooleanType,
@@ -21,7 +12,6 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
-    TimestampType,
 )
 
 # Configuration du logging
@@ -70,7 +60,7 @@ def process_data(spark, input_path, output_path):
     Fonction principale du job Spark.
     Lit les JSON bruts depuis input_path, les transforme, et écrit en Parquet dans output_path.
     """
-    logging.info(f"Démarrage du traitement Spark...")
+    logging.info("Démarrage du traitement Spark...")
     logging.info(f"Lecture depuis : {input_path}")
     logging.info(f"Écriture vers : {output_path}")
 
@@ -131,7 +121,7 @@ def process_data(spark, input_path, output_path):
     # 7. Gérer les valeurs nulles si nécessaire (ex: remplir avec des valeurs par défaut ?).
 
     # === Étape 2b: Extraction et Typage des Champs ===
-    from pyspark.sql.functions import col, from_unixtime, to_timestamp
+    from pyspark.sql.functions import col
     from pyspark.sql.types import (  # Assurez-vous d'importer TimestampType
         BooleanType,
         DoubleType,
