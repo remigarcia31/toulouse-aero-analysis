@@ -33,7 +33,7 @@ steps:
 
   # --- Étape 3 : Setup Python Env, Install Java & Dependencies ---
   - name: 'python:3.11'
-    id: 'Setup Java and Venv'
+    id: 'Setup Environment and Dependencies'
     entrypoint: 'bash'
     args:
       - '-c'
@@ -45,16 +45,17 @@ steps:
         echo "Creating virtual environment in /workspace/venv..."
         python -m venv /workspace/venv
         echo "Installing Python dependencies into venv..."
-        # Utiliser le pip du venv pour installer
         /workspace/venv/bin/pip install --upgrade pip
-        # === AJOUT DES INSTALLATIONS PIP ===
         /workspace/venv/bin/pip install \
           -r src/cloud_function_ingest/requirements.txt \
           -r src/spark_job/requirements.txt \
           -r requirements.txt
-        # ==================================
         echo "Dependencies installed."
-        # PAS d'écriture de java_env.sh ici pour l'instant
+        # === AJOUT DE L'ÉCRITURE DU FICHIER ===
+        echo "Exporting MY_BUILD_JAVA_HOME to /workspace/java_env.sh..."
+        echo "export MY_BUILD_JAVA_HOME=$MY_BUILD_JAVA_HOME" > /workspace/java_env.sh
+        echo "java_env.sh created."
+        # ======================================
 
 
   # # --- Étape 4 : Linting du code Python (Cloud Function) ---
