@@ -13,7 +13,9 @@ logging.basicConfig(level=logging.INFO)
 # storage_client = storage.Client()
 
 
-def fetch_and_store_opensky_data(request):
+def fetch_and_store_opensky_data(event, context):
+    """Point d'entrée déclenché par Pub/Sub."""
+    logging.info(f"Fonction déclenchée par Pub/Sub. Event ID: {context.event_id}, Timestamp: {context.timestamp}")
     """
     Point d'entrée de la Cloud Function. Récupère les données d'OpenSky
     et les stocke dans GCS.
