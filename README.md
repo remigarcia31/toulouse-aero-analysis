@@ -6,7 +6,7 @@
 
 ## 🎯 Objectif du Projet
 
-Ce projet vise à ingérer, traiter, stocker, orchestrer et visualiser les données publiques de suivi de vols ADS-B (Automatic Dependent Surveillance–Broadcast) fournies par OpenSky Network, en se concentrant potentiellement sur la région de Toulouse, hub aéronautique majeur.
+Ce projet vise à ingérer, traiter, stocker, orchestrer et visualiser les données publiques de suivi de vols ADS-B (Automatic Dependent Surveillance–Broadcast) fournies par OpenSky Network, en se concentrant sur la région de Toulouse, hub aéronautique majeur.
 
 L'objectif n'est pas seulement technique, mais aussi de démontrer comment un pipeline data moderne sur GCP peut transformer des données brutes en insights actionnables, **réduisant ainsi le temps d'analyse** pour les parties prenantes (opérations aéroportuaires, études environnementales, planification stratégique) et fournissant une **source de données fiable et à jour** sur l'activité aérienne locale.
 
@@ -15,29 +15,31 @@ Ce repository sert de portfolio pour illustrer mes compétences en Data Engineer
 ## ✨ Fonctionnalités et Points Clés
 
 * **Pipeline de Données E2E :** De l'ingestion brute à la préparation pour la visualisation, en passant par le traitement, le stockage et l'orchestration.
-* **Architecture GCP Moderne :** Utilisation de services managés et serverless pour la scalabilité et l'efficacité opérationnelle (Cloud Functions Gen2, Cloud Storage, BigQuery, Dataproc, Cloud Composer v2, Cloud Build).
-* **Traitement de Données Scalable :** Utilisation d'Apache Spark (via PySpark sur Dataproc) pour traiter et transformer les données JSON brutes.
-* **Stockage Optimisé :** Écriture des données traitées au format Parquet avec **partitionnement de type Hive** (année, mois, jour, heure) sur GCS pour des requêtes analytiques performantes. Utilisation de l'**écrasement de partition dynamique**.
-* **Data Warehousing Analytique :** Exposition des données traitées dans BigQuery via une **table externe partitionnée** pour des requêtes SQL efficaces, complétée par des **vues SQL** pré-calculant des KPIs et facilitant l'analyse.
-* **Orchestration Automatisée :** Utilisation de Cloud Composer v2 (Apache Airflow managé) pour planifier, exécuter et surveiller le pipeline de traitement Spark (DAG Python).
-* **Infrastructure as Code (IaC) :** Définition et gestion de l'infrastructure GCP (Buckets, Dataset BQ, IAM...) via **Terraform** pour la reproductibilité et la gestion versionnée.
-* **Tests Automatisés :** Implémentation de tests unitaires pour la logique de transformation PySpark (avec **pytest** et **chispa**) et pour la fonction d'ingestion (avec **pytest** et **unittest.mock**).
-* **Intégration Continue (CI) :** Mise en place d'un pipeline **Cloud Build** déclenché par Git pour automatiser la validation de l'infrastructure (Terraform Validate), le linting du code Python (`flake8`) et l'exécution des tests unitaires (`pytest`).
-* **Configuration Sécurisée :** Utilisation d'un fichier `.env` (ignoré par Git) pour gérer les configurations spécifiques à l'environnement d'exécution local (backfill).
-* **Préparation pour Visualisation :** Données et vues prêtes à être consommées par un outil de BI comme Looker Studio.
+* **Architecture GCP Moderne & Découplée :** Utilisation de services managés/serverless (Cloud Functions Gen2, Pub/Sub, Cloud Storage, BigQuery, Dataproc, Cloud Composer v2, Cloud Build) pour la scalabilité, la résilience et l'efficacité.
+* **Ingestion Asynchrone :** Utilisation de Pub/Sub pour découpler le déclenchement (Cloud Scheduler) de l'exécution de la fonction d'ingestion (Cloud Function), améliorant la robustesse.
+* **Traitement de Données Scalable & Robuste :** Utilisation d'Apache Spark (via PySpark sur Dataproc) pour traiter et transformer les données JSON brutes, avec **schéma explicite** et gestion des **données nulles/vides**.
+* **Stockage Optimisé :** Écriture des données traitées au format Parquet avec **partitionnement de type Hive** (année, mois, jour, heure) sur GCS. Utilisation de l'**écrasement de partition dynamique** pour des mises à jour efficaces.
+* **Data Warehousing Analytique :** Exposition des données traitées dans BigQuery via une **table externe partitionnée** (découverte auto des partitions) pour des requêtes SQL performantes. Création de **vues SQL** (`bigquery/views/`) pré-calculant des KPIs.
+* **Orchestration Automatisée :** Planification et gestion de l'exécution du pipeline de traitement Spark via un DAG **Apache Airflow** (Python) sur Cloud Composer v2, avec gestion dynamique des chemins d'entrée.
+* **Infrastructure as Code (IaC) :** Définition et gestion de toute l'infrastructure GCP (GCS, BQ, IAM, Pub/Sub, Composer...) via **Terraform**.
+* **Tests Automatisés :** Implémentation de tests unitaires pour la logique de transformation PySpark (**pytest**, **chispa**) et pour la fonction d'ingestion (**pytest**, **unittest.mock**, **freezegun**).
+* **Intégration Continue (CI) :** Pipeline **Cloud Build** validant Terraform, exécutant le linting (`flake8`) et les tests unitaires (`pytest`) à chaque push Git. *(Note: Tests Spark dans CI temporairement contournés)*.
+* **Configuration Sécurisée :** Gestion des configurations locales via fichier `.env` (ignoré par Git).
+* **Préparation pour Visualisation :** Données et vues prêtes pour Looker Studio.
 
 ## 🏗️ Architecture
 
-Le diagramme ci-dessous illustre le flux de données et les composants principaux du projet :
+Le diagramme ci-dessous illustre le flux de données et les composants principaux mis à jour :
 
 ```mermaid
 graph LR
     subgraph " "
         direction LR
-        subgraph "Ingestion (Temps Réel-Like)"
+        subgraph "Ingestion Découplée"
             direction TB
-            OSN[("OpenSky Network API")] -- JSON --> CF(Cloud Function<br/> / Python)
-            SCHED(Cloud Scheduler<br/>Toutes les 10 min) --> CF
+            OSN[("OpenSky Network API")] -- JSON --> CF(Cloud Function<br/>**Gen2** / Python)
+            SCHED(Cloud Scheduler<br/>Toutes les 10 min) -- Trigger msg --> PUBSUB(Pub/Sub Topic<br/>opensky-fetch-trigger)
+            PUBSUB -- Push Event --> CF
             CF -- Fichiers JSON bruts --> GCS_L(GCS Landing<br/>YYYY/MM/DD/HH/)
         end
 
@@ -73,7 +75,7 @@ graph LR
               FLAKE8(Flake8<br/>Linter)
             end
             GIT -- Push --> CB
-            TF --> GCP_RES(Ressources GCP<br/>GCS, BQ, IAM...)
+            TF --> GCP_RES(Ressources GCP<br/>GCS, BQ, IAM, PubSub...)
             CB -- Gère --> TF
             CB -- Déploie --> CF
             CB -- Déploie --> COMP(DAGs)
@@ -86,6 +88,7 @@ graph LR
     style GCS_P fill:#4285F4,stroke:#000,color:#fff
     style CF fill:#DB4437,stroke:#000,color:#fff
     style SCHED fill:#DB4437,stroke:#000,color:#fff
+    style PUBSUB fill:#DB4437,stroke:#000,color:#fff # Ajout Style PubSub
     style DP fill:#F4B400,stroke:#000,color:#000
     style COMP fill:#F4B400,stroke:#000,color:#000
     style BQ_EXT fill:#0F9D58,stroke:#000,color:#fff
@@ -98,14 +101,15 @@ graph LR
     style FLAKE8 fill:#f5f5f5,stroke:#333,color:#333
     style ENV fill:#f5f5f5,stroke:#333,color:#333
 ```
+
 **Flux Détaillé :**
-1.  **Ingestion :** Cloud Scheduler déclenche (toutes les 10 min) une Cloud Function (Python). Celle-ci interroge l'API OpenSky Network et écrit les données JSON brutes dans GCS Landing Zone (`YYYY/MM/DD/HH/`).
+1.  **Ingestion :** Cloud Scheduler publie (toutes les 10 min) un message dans un **Topic Pub/Sub**. Pub/Sub déclenche ensuite la Cloud Function Gen2 (Python). Celle-ci interroge l'API OpenSky Network et écrit les données JSON brutes dans GCS Landing Zone (`YYYY/MM/DD/HH/`).
 2.  **Orchestration :** Cloud Composer v2 exécute un DAG Airflow (planifié `@hourly`).
-3.  **Traitement :** Le DAG soumet un job PySpark à un cluster Dataproc. Le job lit les JSON bruts de l'heure précédente depuis GCS Landing. Il nettoie, transforme les données, et les enrichit avec des colonnes de partition (year, month, day, hour). Il écrit le résultat au format Parquet dans GCS Processed Zone en utilisant le **partitionnement Hive** et l'**écrasement dynamique des partitions**.
-4.  **Accès Analytique :** Une **table externe partitionnée** dans BigQuery (`flight_data_external`) pointe vers les fichiers Parquet sur GCS, permettant des requêtes SQL performantes grâce à l'élimination des partitions (partition pruning). Des **vues SQL** (`vw_*`) sont définies dans un dossier `bigquery/views/` et créées sur BigQuery pour simplifier l'accès aux KPIs.
-5.  **Consommation :** Les analystes peuvent interroger les vues/tables BigQuery via SQL, ou connecter des outils de BI comme Looker Studio pour créer des dashboards interactifs.
-6.  **Gestion :** L'infrastructure est définie avec Terraform (`IaC`). Le code (Python, SQL, DAG, Terraform) est versionné avec Git. La configuration sensible locale est gérée via un fichier `.env` (ignoré par Git).
-7.  **Intégration Continue (CI) :** Cloud Build est déclenché par les `push` Git. Il valide le code Terraform, installe les dépendances Python (y compris `pyspark`, `pytest`, `chispa`, `flake8`), exécute le linter `flake8` et les tests unitaires `pytest` pour la Cloud Function et le script Spark. *(Note: L'exécution des tests Spark dans Cloud Build peut nécessiter une attention particulière concernant l'environnement Java).*
+3.  **Traitement :** Le DAG soumet un job PySpark à un cluster Dataproc. Le job lit les JSON bruts de l'heure précédente depuis GCS Landing, **en gérant les inputs vides ou `null`**. Il nettoie, transforme les données, ajoute les colonnes de partition (year, month, day, hour) et écrit le résultat au format Parquet dans GCS Processed Zone (partitionnement Hive, écrasement dynamique).
+4.  **Accès Analytique :** Une table externe partitionnée dans BigQuery (`flight_data_external`) pointe vers les fichiers Parquet GCS (découverte auto des partitions). Des vues SQL (`vw_*`, stockées dans `bigquery/views/`) simplifient l'accès aux KPIs.
+5.  **Consommation :** Les analystes interrogent BigQuery via SQL ou connectent Looker Studio aux vues.
+6.  **Gestion :** Infrastructure définie via Terraform (`IaC`). Code source versionné avec Git. Configuration locale gérée via `.env` (ignoré par Git).
+7.  **Intégration Continue (CI) :** Cloud Build valide Terraform, exécute `flake8` et `pytest` (tests unitaires CF & Spark) sur les pushs Git. *(Note: L'étape de test Spark dans CI a été temporairement adaptée pour contourner un problème de parsing lié à JAVA_HOME).*
 
 ## 🛠️ Technologies Utilisées
 
@@ -117,20 +121,20 @@ graph LR
     * BigQuery
     * Cloud Composer (**v2**, Airflow 2.x)
     * Cloud Scheduler
+    * **Pub/Sub**
     * Cloud Build
     * IAM
     * Looker Studio
-    * *(Optionnel: Secret Manager, Artifact Registry)*
 * **Langages :** Python (3.11), SQL (GoogleSQL), Bash
 * **Frameworks / Bibliothèques Clés :**
-    * PySpark (pour le traitement)
-    * Apache Airflow (pour l'orchestration)
-    * Pandas, Requests (dans Cloud Function)
+    * PySpark
+    * Apache Airflow
+    * Pandas, Requests
     * google-cloud-python libraries
-    * `pytest`, `chispa`, `unittest.mock`, `freezegun` (pour les tests)
-    * `flake8` (pour le linting)
+    * `pytest`, `chispa`, `unittest.mock`, `freezegun` (Tests)
+    * `flake8` (Linting)
 * **Infrastructure & CI/CD :** Terraform, Git, Docker (implicitement)
-* **Concepts Clés :** Partitionnement Hive, Tables Externes BigQuery, IaC, CI, Tests Unitaires, Mocking, Orchestration DAG.
+* **Concepts Clés :** Partitionnement Hive, Tables Externes BigQuery, IaC, CI, Tests Unitaires, Mocking, Orchestration DAG, Messagerie Asynchrone (Pub/Sub).
 * **Formats de Données :** JSON (brut), Parquet (traité)
 
 ## 📊 Données Source
@@ -159,8 +163,8 @@ Ce projet nécessite une configuration spécifique sur GCP.
 * `gcloud` CLI installé et configuré.
 * `terraform` CLI installé.
 * `git` installé.
-* Python 3.11 (ou compatible) et `pip` pour l'environnement virtuel local.
-* Java JDK (ex: 11) installé localement avec `JAVA_HOME` configuré.
+* Python 3.11 et `pip`.
+* Java JDK (ex: 11) avec `JAVA_HOME` configuré (pour tests Spark locaux).
 
 **Étapes :**
 1.  **Cloner le Dépôt :** `git clone https://github.com/remigarcia31/toulouse-aero-analysis.git`
@@ -173,13 +177,13 @@ Ce projet nécessite une configuration spécifique sur GCP.
     * Créez un fichier `.env` à la racine (copiez depuis `.env.example`).
     * Assurez-vous que `.env` est dans `.gitignore`.
     * Remplissez les variables (`PROJECT_ID`, noms de buckets...).
-4.  **Infrastructure :** `cd terraform/`, `terraform init`, `terraform apply`. (Crée GCS, BQ Dataset, IAM...).
+4.  **Infrastructure :** `cd terraform/`, `terraform init`, `terraform apply`. (Crée GCS, BQ Dataset, IAM, Topic Pub/Sub ...).
 5.  **Déploiement Initial / CI :**
     * Le pipeline Cloud Build configuré dans `cloudbuild.yaml` devrait se déclencher sur `git push`. Il exécute `terraform validate`, `flake8`, `pytest` pour les différents composants.
     * Le déploiement effectif des Cloud Functions, DAGs, etc., n'est pas encore inclus dans la CI/CD (voir Améliorations). Un déploiement manuel initial (`gcloud functions deploy...`, `gsutil cp ...`) est nécessaire ou à intégrer à la CI/CD.
 6.  **Orchestration & Scheduler (Si besoin de les activer) :**
     * Créez/Démarrez l'environnement Cloud Composer (`gcloud composer ...`).
-    * Créez/Reprenez le job Cloud Scheduler (`gcloud scheduler ...`).
+    * Créez/Reprenez le job Cloud Scheduler ciblant Pub/Sub (`gcloud scheduler jobs create pubsub ...`).
 7.  **Backfill Historique (Optionnel - Manuel) :**
     * Démarrez un cluster Dataproc (`gcloud dataproc clusters create ...`).
     * Utilisez le script `backfill_spark_jobs.sh` (configuré via `.env`).
@@ -188,6 +192,7 @@ Ce projet nécessite une configuration spécifique sur GCP.
     * Nécessite un environnement Composer actif.
     * Le DAG actuel (`aero_data_processing_pipeline`) cible un cluster Dataproc manuel (`aero-cluster-test`). Pour un fonctionnement autonome, il faut le modifier pour utiliser des **clusters éphémères** (voir Améliorations).
     * Activez le DAG et le Scheduler pour un fonctionnement continu.
+
 
 ## 📊 Résultats & Visualisation
 
@@ -199,7 +204,7 @@ Un tableau de bord Looker Studio a été créé pour explorer interactivement ce
 * La répartition du trafic par pays d'origine.
 * Des indicateurs sur l'altitude et la vitesse moyennes.
 * Des filtres par date et par pays.
-
+  
 **[TODO : Insérez ici une capture d'écran de votre dashboard Looker Studio]**
 `![Aperçu Dashboard Looker Studio](chemin/vers/screenshot_dashboard.png)`
 
